@@ -188,6 +188,7 @@ class Mnemonic:
         INT = 'Int'
         FLOAT = 'Float'
         STR = 'Str'
+        BOOL = 'Bool'
         RAW = 'Raw'
         NONE = None
 

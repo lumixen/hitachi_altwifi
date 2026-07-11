@@ -35,6 +35,17 @@ class Sensor: public sensor::Sensor, public StatusComponent {
     void set_mnemonic_default(Mnemonic* m, MessageParameters params = {}, bool promote = PROMOTE) {
       this->set_mnemonic( m,[this, m]() { this->publish_state(m->get_status<float>()); }, params, promote);
     }
+
+    /// Set mnemonic with a specific callback related to the OnOf mnemonic status
+    void set_mnemonic_onoff(Mnemonic* m, MessageParameters params = {}, bool promote = PROMOTE) {
+      this->set_mnemonic( m,[this, m]() {
+        if (Mnemonic::IDU_OnOf.get_status<char>('0') == '1') {
+          this->publish_state(m->get_status<float>());
+        } else {
+          this->publish_state(NAN);
+        }
+      }, params, promote);
+    }
 };
 
 

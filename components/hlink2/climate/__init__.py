@@ -11,6 +11,7 @@ from esphome.components.climate import (
     ClimatePreset,
     ClimateSwingMode,
     ClimateFanMode,
+    ClimatePreset,
 )
 from esphome.const import (
     CONF_ID,
@@ -71,8 +72,8 @@ HLINK2_AC_FAN_MODES = {
 
 HLINK2_AC_PRESETS = {
     "NONE": ClimatePreset.CLIMATE_PRESET_NONE,
-    "AWAY": ClimatePreset.CLIMATE_PRESET_AWAY,
     "ECO": ClimatePreset.CLIMATE_PRESET_ECO,
+    "AWAY": ClimatePreset.CLIMATE_PRESET_AWAY,
     "BOOST": ClimatePreset.CLIMATE_PRESET_BOOST,
     "SLEEP": ClimatePreset.CLIMATE_PRESET_SLEEP,
 }
@@ -190,8 +191,8 @@ async def to_code(config):
             presets.append(HLINK2_AC_PRESETS["NONE"])
 
         cg.add(var.set_supported_presets(presets))
-        if custom_presets:
-            cg.add(var.set_supported_custom_presets(custom_presets))
+        #if custom_presets:
+        #    cg.add(var.set_supported_custom_presets(custom_presets))
 
     if actions := config.get(CONF_HVAC_ACTIONS):
         cg.add(var.set_supports_hvac_actions(actions))

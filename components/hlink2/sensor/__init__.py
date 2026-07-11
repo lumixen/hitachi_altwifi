@@ -5,6 +5,7 @@ from esphome.const import (
     CONF_ID,
     CONF_NAME,
     CONF_LAMBDA,
+    CONF_CAPACITY,
     CONF_CUSTOM,
     CONF_DEST,
     CONF_ENERGY,
@@ -19,6 +20,7 @@ from esphome.const import (
     STATE_CLASS_TOTAL_INCREASING,
     UNIT_CELSIUS,
     UNIT_HOUR,
+    UNIT_KILOWATT,
     UNIT_PERCENT,
     UNIT_WATT,
     UNIT_WATT_HOURS,
@@ -39,10 +41,12 @@ from ..component import (
     generate_lambda,
     generate_arguments,
     schema_mnemonic,
+    schema_mnemonic_params,
     CONF_AIRFLOW,
     CONF_FILTER_USAGE,
     CONF_MNEMONIC,
     CONF_PROMOTE,
+    CONF_OFF_UPDATE,
     CONF_OUTDOOR_EXCHANGER_TEMPERATURE,
     CONF_OUTDOOR_TEMPERATURE,
     CONF_INDOOR_EXCHANGER_TEMPERATURE,
@@ -50,10 +54,12 @@ from ..component import (
     CONF_INDOOR_HUMIDITY,
     CONF_TARGET_TEMPERATURE,
     ICON_FILTER,
+    ICON_GAUGE_FULL,
     ICON_LIGHTNING_BOLT,
     ICON_POWER_PLUG,
     ICON_TARGET_TEMPERATURE,
     MNEMONIC_AIRFLOW,
+    MNEMONIC_CAPACITY,
     MNEMONIC_ENERGY,
     MNEMONIC_FILTER_USAGE,
     MNEMONIC_INDOOR_EXCHANGER_TEMPERATURE,
@@ -84,7 +90,7 @@ COMPONENTS_CONFIG = {
         device_class=DEVICE_CLASS_TEMPERATURE,
         state_class=STATE_CLASS_MEASUREMENT,
         entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ).extend(SCHEMA_MNEMONIC_PARAMS)
+    ).extend(schema_mnemonic_params(off_update=False))
     .extend(schema_mnemonic(MNEMONIC_OUTDOOR_TEMPERATURE)),
     
     CONF_INDOOR_TEMPERATURE : sensor.sensor_schema(Sensor,
@@ -134,7 +140,7 @@ COMPONENTS_CONFIG = {
         device_class=DEVICE_CLASS_POWER,
         state_class=STATE_CLASS_MEASUREMENT,
         entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ).extend(SCHEMA_MNEMONIC_PARAMS)
+    ).extend(schema_mnemonic_params(off_update=False))
     .extend(schema_mnemonic(MNEMONIC_POWER)),
 
     CONF_TARGET_TEMPERATURE: sensor.sensor_schema(Sensor,
@@ -164,7 +170,7 @@ COMPONENTS_CONFIG = {
         device_class=DEVICE_CLASS_TEMPERATURE,
         state_class=STATE_CLASS_MEASUREMENT,
         entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ).extend(SCHEMA_MNEMONIC_PARAMS)
+    ).extend(schema_mnemonic_params(off_update=False))
     .extend(schema_mnemonic(MNEMONIC_OUTDOOR_EXCHANGER_TEMPERATURE)),
     
     CONF_FILTER_USAGE: sensor.sensor_schema(Sensor,
@@ -176,6 +182,16 @@ COMPONENTS_CONFIG = {
         entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
     ).extend(SCHEMA_MNEMONIC_PARAMS)
     .extend(schema_mnemonic(MNEMONIC_FILTER_USAGE)),
+
+    CONF_CAPACITY: sensor.sensor_schema(Sensor,
+        unit_of_measurement=UNIT_KILOWATT,
+        icon=ICON_GAUGE_FULL,
+        accuracy_decimals=1,
+        device_class=DEVICE_CLASS_POWER,
+        state_class=STATE_CLASS_MEASUREMENT,
+        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+    ).extend(schema_mnemonic_params(update_interval='1h'))
+    .extend(schema_mnemonic(MNEMONIC_CAPACITY)),
     
     CONF_CUSTOM: sensor.sensor_schema(
         Sensor,
@@ -211,5 +227,8 @@ async def to_code(config):
             if lambda_cg := generate_lambda(conf, mnemonic=str(mnemonic_cg), sensor=var):
                 cg.add(var.set_mnemonic(*generate_arguments(mnemonic_cg, lambda_cg, params_cg, conf.get(CONF_PROMOTE))))
             else:
-                cg.add(var.set_mnemonic_default(*generate_arguments(mnemonic_cg, params_cg, conf.get(CONF_PROMOTE))))
+                if conf.get(CONF_OFF_UPDATE) is False:
+                    cg.add(var.set_mnemonic_onoff(*generate_arguments(mnemonic_cg, params_cg, conf.get(CONF_PROMOTE))))
+                else:
+                    cg.add(var.set_mnemonic_default(*generate_arguments(mnemonic_cg, params_cg, conf.get(CONF_PROMOTE))))
     

@@ -7,7 +7,6 @@
 #include <string_view>
 #include <utility>
 
-#include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
 
 
@@ -419,7 +418,7 @@ inline std::string debug_data(const uint8_t* data, size_t len) {
 
   for (size_t i = 0; i < len; ++i) {
     if (data[i] < 32 || data[i] > 126) {
-      result += '|';
+      result += '\\';
       result += hex[data[i] >> 4];
       result += hex[data[i] & 0xF];
     } else {

@@ -70,15 +70,19 @@ public:
   std::string_view status() {return this->status_.view();};
 
   static Mnemonic IDU_Buzz;
+  static Mnemonic IDU_CapC;
   static Mnemonic IDU_FanS;
   static Mnemonic IDU_FanSw;
   static Mnemonic IDU_FilS;
   static Mnemonic IDU_FltT;
+  static Mnemonic IDU_Func1;
+  static Mnemonic IDU_Func2;
   static Mnemonic IDU_HExT;
   static Mnemonic ODU_HExT;
   static Mnemonic IDU_Hr;
   static Mnemonic IDU_Mode;
   static Mnemonic IDU_Modl;
+  static Mnemonic IDU_MdDtl;
   static Mnemonic IDU_OnOf;
   static Mnemonic IDU_Opt1;
   static Mnemonic IDU_Opt2;
@@ -93,6 +97,7 @@ public:
   static Mnemonic IDU_SetT;
   static Mnemonic IDU_SSID;
   static Mnemonic ODU_Ta;
+  static Mnemonic IDU_Thmo;
   static Mnemonic IDU_Time;
   static Mnemonic IDU_Tr;
   static Mnemonic IDU_WSt;

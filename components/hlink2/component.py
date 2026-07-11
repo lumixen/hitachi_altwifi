@@ -25,7 +25,9 @@ from .mnemonics import (
 
 CONF_AIRFLOW = "airflow"
 CONF_BUZZER = "buzzer"
+CONF_CLIMATE = "climate"
 CONF_FILTER_USAGE = "filter_usage"
+CONF_FILTER_MAINTENANCE = "filter_maintenance"
 CONF_FILTER_RESET = "filter_reset"
 CONF_FLAG = "flag"
 CONF_HVAC_ACTIONS = "hvac_actions"
@@ -36,6 +38,7 @@ CONF_LED_WIFI = "led_wifi"
 CONF_LED_TIMER = "led_timer"
 CONF_MNEMONIC = "mnemonic"
 CONF_MNEMONICS = "mnemonics"
+CONF_OFF_UPDATE = "off_update"
 CONF_OUTDOOR_EXCHANGER_TEMPERATURE = "outdoor_exchanger"
 CONF_OUTDOOR_TEMPERATURE = "outdoor_temperature"
 CONF_PROMOTE = "promote"
@@ -45,12 +48,15 @@ CONF_TARGET_TEMPERATURE = "target_temperature"
 CONF_COMMAND_MESSAGE = "command_message"
 
 MNEMONIC_AIRFLOW = "IDU_Rair"
+MNEMONIC_CAPACITY = "IDU_CapC"
+MNEMONIC_CLIMATE = "IDU_Thmo"
 MNEMONIC_ENERGY = "IDU_PwrC"
 MNEMONIC_POWER = "IDU_PwrI"
 MNEMONIC_INDOOR_EXCHANGER_TEMPERATURE = "IDU_HExT"
 MNEMONIC_INDOOR_TEMPERATURE = "IDU_Tr"
 MNEMONIC_INDOOR_HUMIDITY = "IDU_Hr"
 MNEMONIC_MODEL = "IDU_Modl"
+MNEMONIC_ONOFF = "IDU_OnOf"
 MNEMONIC_OUTDOOR_EXCHANGER_TEMPERATURE = "ODU_HExT"
 MNEMONIC_OUTDOOR_TEMPERATURE = "ODU_Ta"
 MNEMONIC_PASSWORD = "IDU_Pwd"
@@ -66,6 +72,8 @@ MNEMONIC_LED_TIMER = "IDU_WtmS"
 ICON_BELL = "mdi:bell"
 ICON_FILTER = "mdi:air-filter"
 ICON_FORM = "mdi:form-textbox"
+ICON_GAUGE_FULL = "mdi:gauge-full"
+ICON_HVAC = "mdi:hvac"
 ICON_INFORMATION = "mdi:information-outline"
 ICON_LED = "mdi:led-outline"
 ICON_LED_ON = "di:led-on"
@@ -140,7 +148,7 @@ def validate_mnemonic(config: dict | str, *modes):
         mnemonic = Mnemonics.find(config)
 
         if mnemonic == Mnemonic.NONE:
-            errors.append(f'{config} is not a valid mnemonic {[m.id for m in Mnemonics]}')
+            errors.append(f'{config} is NOT a valid mnemonic {[m.id for m in Mnemonics]}')
 
         for mode in modes:
             if mnemonic.mode & mode != mode:
@@ -221,7 +229,6 @@ SCHEMA_QOS = cv.Schema({
     )
 })
 
-
 def validate_number(config: dict) -> dict:
     if config[CONF_MIN_VALUE] >= config[CONF_MAX_VALUE]:
         raise cv.Invalid('min must be lower than max')
@@ -240,27 +247,34 @@ def schema_number(mins: list, maxs: list, steps: list):
     validate_number
 )
 
-
 SCHEMA_MESSAGE_CMD_PARAMS = cv.Schema({
     cv.Optional(CONF_BUZZER): cv.boolean,
     cv.Optional(CONF_LAMBDA): cv.lambda_,
-}).extend(SCHEMA_QOS)
+}).extend(SCHEMA_QOS) 
 
+def schema_mnemonic_sts_params(*, update_interval=None, off_update=True):
+    update_interval_default = dict() if update_interval is None else dict(default=update_interval)
+    
+    return cv.Schema({
+        cv.Optional(CONF_UPDATE_INTERVAL, **update_interval_default): cv.All(
+            cv.positive_time_period,
+            cv.Range(core.TimePeriod(seconds=2), core.TimePeriod(hours=24)),
+            (lambda a: a.total_milliseconds)
+        ),
+        cv.Optional(CONF_LAMBDA): cv.lambda_,
+        cv.Optional(CONF_OFF_UPDATE, default=off_update): cv.boolean,
+    }).extend(SCHEMA_QOS)
 
-SCHEMA_MESSAGE_STS_PARAMS = cv.Schema({
-    cv.Optional(CONF_UPDATE_INTERVAL): cv.All(
-        cv.positive_time_period,
-        cv.Range(core.TimePeriod(seconds=2), core.TimePeriod(hours=24)),
-        (lambda a: a.total_milliseconds)
-    ),
-    cv.Optional(CONF_LAMBDA): cv.lambda_,
-}).extend(SCHEMA_QOS)
+SCHEMA_MESSAGE_STS_PARAMS = schema_mnemonic_sts_params()
 
+def schema_mnemonic_params(*, update_interval=None, off_update=True, promote=None):
+    promote_default = dict() if promote is None else dict(default=promote)
 
-SCHEMA_MNEMONIC_PARAMS = cv.Schema({
-    cv.Optional(CONF_PROMOTE): cv.boolean,
-}).extend(SCHEMA_MESSAGE_STS_PARAMS)
+    return schema_mnemonic_sts_params(update_interval=update_interval, off_update=off_update).extend(
+        {cv.Optional(CONF_PROMOTE, **promote_default): cv.boolean,}
+    )
 
+SCHEMA_MNEMONIC_PARAMS = schema_mnemonic_params()
 
 # --- FINAL VALIDATION ---
 

@@ -9,7 +9,6 @@
 
 #include "esphome/core/log.h"
 
-#include "main.h"
 #include "buffer.h"
 
 namespace esphome {

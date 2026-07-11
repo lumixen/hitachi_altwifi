@@ -1,12 +1,12 @@
 #pragma once
 
-#include "esphome/components/climate/climate_mode.h"
+#include <cstdint>
+#include <set>
+
 #include "esphome/core/component.h"
 #include "esphome/components/climate/climate.h"
 
 #include "../core.h"
-#include <cstddef>
-#include <cstdint>
 
 namespace esphome {
 namespace hlink2 {
@@ -74,11 +74,13 @@ class Climate: public Component, public climate::Climate, public Parented<Core> 
     void dump_config() override;
     
     void control(const climate::ClimateCall &call) override;
-    climate::ClimateTraits traits() override;
-    void set_supported_modes(const std::set<climate::ClimateMode> &modes);
-    void set_supported_swing_modes(const std::set<climate::ClimateSwingMode> &modes);
-    void set_supported_fan_modes(const std::set<climate::ClimateFanMode> &modes);
-    void set_supported_presets(const std::set<climate::ClimatePreset> &presets);
+
+
+    void set_supported_modes(climate::ClimateModeMask modes) { this->traits_.set_supported_modes(modes); };
+    void set_supported_fan_modes(climate::ClimateFanModeMask modes) { this->traits_.set_supported_fan_modes(modes); };
+    void set_supported_swing_modes(climate::ClimateSwingModeMask modes) { this->traits_.set_supported_swing_modes(modes); };
+    void set_supported_presets(climate::ClimatePresetMask presets) { this->traits_.set_supported_presets(presets); };
+
     void set_supported_custom_presets(const std::set<std::string> &presets);
     void set_supports_hvac_actions(bool support_hvac_actions);
   
@@ -88,6 +90,9 @@ class Climate: public Component, public climate::Climate, public Parented<Core> 
 
     /// empty method required because register_component calls it in python
     inline void set_update_interval(uint32_t interval) {};
+
+    climate::ClimateTraits traits() override { return this->traits_; }
+    climate::ClimateTraits get_traits() { return this->traits_; };
 
     void set_power();
 

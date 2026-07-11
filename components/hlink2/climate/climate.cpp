@@ -17,13 +17,23 @@ static const char *const TAG = "hlink2:climate";
 
 void Climate::setup() {
   if (!this->get_parent()) {
-    this->mark_failed("get_parent failed");
+    this->mark_failed(LOG_STR("get_parent failed"));
     return;
   }
   if (!(status_ = this->get_parent()->register_persistent_message<Mnemonic::Mode::STS, Mnemonic::Dest::IDU>(this->status_params_))) {
-    this->mark_failed("register_status_message failed");
+    this->mark_failed(LOG_STR("register_status_message failed"));
     return;
   }
+
+  auto modes = this->traits_.get_supported_modes();
+  modes.insert(climate::CLIMATE_MODE_OFF);
+  this->traits_.set_supported_modes(modes);
+  this->traits_.add_feature_flags(
+    climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE |
+    climate::CLIMATE_SUPPORTS_CURRENT_HUMIDITY | 
+    climate::CLIMATE_SUPPORTS_ACTION
+  );
+
 
   status_->add(Mnemonic::IDU_OnOf);
   status_->add(Mnemonic::IDU_Mode);
@@ -48,7 +58,7 @@ void Climate::setup() {
   status_->add_callback([this]() { this->set_preset(); this->publish_state(); });
 
   if(!(this->control_ = this->get_parent()->register_persistent_message<Mnemonic::Mode::CMD, Mnemonic::Dest::IDU>(this->control_params_)) ) {
-    this->mark_failed("register_command_message failed");
+    this->mark_failed(LOG_STR("register_command_message failed"));
     return;
   }
   this->request_OnOf = this->control_->add(Mnemonic::IDU_OnOf);
@@ -106,7 +116,6 @@ void Climate::set_preset() {
 void Climate::set_preset(uint32_t value) {
   /// this implementation doesn't allow multiple values at once, a bitmask test could be a better solution (but doesn't fit with presets)
   this->preset.reset();
-  this->custom_preset.reset();
   switch (value) {
     case CLIMATE_PRESET_AWAY:
       this->preset = climate::CLIMATE_PRESET_AWAY;
@@ -121,7 +130,7 @@ void Climate::set_preset(uint32_t value) {
       ESP_LOGV(TAG, "set_preset: ECO");
       break;
     case CLIMATE_PRESET_SILENCE:
-      this->custom_preset = std::string(CLIMATE_CUSTOM_PRESET_SILENCE);
+      this->set_custom_preset_(CLIMATE_CUSTOM_PRESET_SILENCE);
       ESP_LOGV(TAG, "set_preset: SILENCE");
       break;
     case CLIMATE_PRESET_SLEEP:
@@ -130,11 +139,11 @@ void Climate::set_preset(uint32_t value) {
       break;
     case CLIMATE_PRESET_NONE:
       this->preset = climate::CLIMATE_PRESET_NONE;
-      ESP_LOGV(TAG, "set_preset: NONE (%lu)", value);
+      ESP_LOGV(TAG, "set_preset: NONE (%u)", value);
       break;
     default:
       this->preset = climate::CLIMATE_PRESET_NONE;
-      ESP_LOGW(TAG, "set_preset: unknow preset %lu", value);
+      ESP_LOGW(TAG, "set_preset: unknow preset %u", value);
   }
 }
 
@@ -360,8 +369,8 @@ void Climate::control(const climate::ClimateCall &call) {
   }
   
 
-  if (call.get_custom_preset()) {
-    if (*call.get_custom_preset() == CLIMATE_CUSTOM_PRESET_SILENCE) {
+  if (call.has_custom_preset()) {
+    if (call.get_custom_preset() == CLIMATE_CUSTOM_PRESET_SILENCE) {
         this->request_Opt1->set_request<uint8_t>(CLIMATE_PRESET_SILENCE >> 24 & 0xFF);
         this->request_Opt2->set_request<uint8_t>(CLIMATE_PRESET_SILENCE >> 16 & 0xFF);
         this->request_Opt3->set_request<uint8_t>(CLIMATE_PRESET_SILENCE >> 8 & 0xFF);
@@ -414,40 +423,12 @@ void Climate::control(const climate::ClimateCall &call) {
 }
 
 
-climate::ClimateTraits Climate::traits() {
-  this->traits_.set_supports_current_temperature(true);
-  this->traits_.set_supports_current_humidity(true);
-  return this->traits_;
-}
-
-
-void Climate::set_supported_modes(const std::set<climate::ClimateMode> &modes) {
-  this->traits_.set_supported_modes(modes);
-  this->traits_.add_supported_mode(climate::CLIMATE_MODE_OFF);
-}
-
-
-void Climate::set_supported_swing_modes(const std::set<climate::ClimateSwingMode> &modes) {
-  this->traits_.set_supported_swing_modes(modes);
-}
-
-
-void Climate::set_supported_fan_modes(const std::set<climate::ClimateFanMode> &modes) {
-  this->traits_.set_supported_fan_modes(modes);
-}
-
-
-void Climate::set_supported_presets(const std::set<climate::ClimatePreset> &presets) {
-  this->traits_.set_supported_presets(presets);
-}
-
-void Climate::set_supported_custom_presets(const std::set<std::string> &presets) {
-  this->traits_.set_supported_custom_presets(presets);
-} 
-
-
 void Climate::set_supports_hvac_actions(bool support_hvac_actions) {
-  this->traits_.set_supports_action(support_hvac_actions);
+  if (support_hvac_actions) {
+    this->traits_.add_feature_flags(climate::CLIMATE_SUPPORTS_ACTION);
+  } else {
+    this->traits_.clear_feature_flags(climate::CLIMATE_SUPPORTS_ACTION);
+  }
 }
 
 

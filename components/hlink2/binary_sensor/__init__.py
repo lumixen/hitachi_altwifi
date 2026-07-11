@@ -1,18 +1,19 @@
 import esphome.config_validation as cv
 import esphome.codegen as cg
-from esphome.components import text_sensor
+from esphome.components import binary_sensor
 from esphome.const import (
     CONF_ID,
     CONF_NAME,
     CONF_LAMBDA,
-    CONF_MODEL,
     CONF_DEST,
     CONF_CUSTOM,
     CONF_UPDATE_INTERVAL,
     CONF_QOS,
     CONF_RAW,
+    CONF_STATE,
     ENTITY_CATEGORY_DIAGNOSTIC,
     ICON_BUG,
+    ICON_POWER,
 )
 
 
@@ -26,32 +27,48 @@ from ..component import (
     generate_lambda,
     generate_arguments,
     schema_mnemonic,
-    schema_mnemonic_params,
+    CONF_CLIMATE,
+    CONF_FILTER_MAINTENANCE,
     CONF_MNEMONIC,
     CONF_PROMOTE,
-    MNEMONIC_MODEL,
-    ICON_INFORMATION,
+    ICON_FILTER,
+    ICON_HVAC,
+    MNEMONIC_CLIMATE,
+    MNEMONIC_FILTER_STATUS,
+    MNEMONIC_ONOFF,
     SCHEMA_MNEMONIC_PARAMS,
     SCHEMA_MNEMONIC_CUSTOM,
     FINAL_VALIDATE_SCHEMA,
 )
 
 
-DEPENDENCIES = ['text_sensor']
+DEPENDENCIES = ['binary_sensor']
 CODEOWNERS = CODEOWNERS
 
-TextSensor = hlink2_ns.class_('TextSensor', text_sensor.TextSensor, cg.Component)
+BinarySensor = hlink2_ns.class_('BinarySensor', binary_sensor.BinarySensor, cg.Component)
 
 
 COMPONENTS_CONFIG = {
-    CONF_MODEL: text_sensor.text_sensor_schema(TextSensor,
-        icon=ICON_INFORMATION,
+    CONF_STATE: binary_sensor.binary_sensor_schema(BinarySensor,
+        icon=ICON_POWER,
         entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-    ).extend(schema_mnemonic_params(update_interval="1h"))
-    .extend(schema_mnemonic(MNEMONIC_MODEL)),
+    ).extend(SCHEMA_MNEMONIC_PARAMS)
+    .extend(schema_mnemonic(MNEMONIC_ONOFF)),
 
-    CONF_CUSTOM: text_sensor.text_sensor_schema(
-        TextSensor,
+    CONF_CLIMATE: binary_sensor.binary_sensor_schema(BinarySensor,
+        icon=ICON_HVAC,
+        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+    ).extend(SCHEMA_MNEMONIC_PARAMS)
+    .extend(schema_mnemonic(MNEMONIC_CLIMATE)),
+
+    CONF_FILTER_MAINTENANCE: binary_sensor.binary_sensor_schema(BinarySensor,
+        icon=ICON_FILTER,
+        entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+    ).extend(SCHEMA_MNEMONIC_PARAMS)
+    .extend(schema_mnemonic(MNEMONIC_FILTER_STATUS)),
+
+    CONF_CUSTOM: binary_sensor.binary_sensor_schema(
+        BinarySensor,
         icon=ICON_BUG,
         entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
     ).extend(SCHEMA_MNEMONIC_CUSTOM)
@@ -62,7 +79,7 @@ COMPONENTS_CONFIG = {
 CONFIG_SCHEMA = config_schema(
     CONF_HLINK2_ID,
     Core,
-    TextSensor,
+    BinarySensor,
     **COMPONENTS_CONFIG,
 )
 
@@ -75,7 +92,7 @@ async def to_code(config):
 
     for name, conf in config.items():
         if name in COMPONENTS_CONFIG:
-            var = await text_sensor.new_text_sensor(conf)
+            var = await binary_sensor.new_binary_sensor(conf)
             cg.add(var.set_parent(parent))
             await cg.register_component(var, conf)
 

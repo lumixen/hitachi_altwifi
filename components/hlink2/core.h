@@ -7,17 +7,12 @@
 #include "esphome/components/uart/uart.h"
 
 
+
 #include "main.h"
 #include "tools.h"
 #include "buffer.h"
 #include "message.h"
 #include "mnemonics.h"
-
-namespace esphome {
-namespace api {
-  class CustomAPIDevice;
-}
-}
 
 
 namespace esphome {
@@ -104,13 +99,18 @@ class Core: public uart::UARTDevice, public Component {
     inline const bool buzzer() { return this->buzzer_; }
     inline void buzzer(const bool state) { this->buzzer_ = state; }
 
+    PersistentVector &persistent_messages() { return *this->persistent_messages_; }
+    EphemeralVector &ephemeral_messages() { return *this->ephemeral_messages_; }
+
   protected:
     bool buzzer_{false};
     Task current_task_{Task::EXCHANGE};
     IOBuffer buffer_rx_{};
-    api::CustomAPIDevice* api_device_{nullptr};
-    PersistentVector persistent_messages_{};
-    EphemeralVector ephemeral_messages_{};
+    //api::CustomAPIDevice* api_device_{nullptr};
+    class CoreAPIDevice;
+    CoreAPIDevice* api_device_{nullptr};
+    PersistentVector* persistent_messages_{nullptr};
+    EphemeralVector* ephemeral_messages_{nullptr};
     OrderedVector<Message*, PersistentVector::capacity() + EphemeralVector::capacity()> messages_;
     RingVector<Message*, MESSAGE_RECEIVED_VECTOR_SIZE> received_messages;
     Message* current_message_{nullptr};

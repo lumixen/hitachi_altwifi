@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
-#include <vector>
 #include "core.h"
 #include "esphome/components/api/custom_api_device.h"
 
@@ -19,6 +18,20 @@ namespace hlink2 {
 static const char *const TAG = "hlink2:core";
 
 
+class Core::CoreAPIDevice : public api::CustomAPIDevice {
+  public:
+    explicit CoreAPIDevice(Core *core) : core_(core) {
+      register_service(&CoreAPIDevice::send_message, "send_message", {"flag","items","qos"});
+    }
+
+    void send_message(std::string flag, std::vector<std::string> items, int32_t qos) {
+      core_->action_custom_message(flag, std::move(items), qos);
+    }
+
+  private:
+    Core *core_;
+};
+
 Core::Core() {
   this->buffer_rx_.set_state(IOBuffer::State::EMPTY);
 }
@@ -26,21 +39,29 @@ Core::Core() {
 
 /* ------------------------- SETUP ------------------------- */
 void Core::setup() {
+  persistent_messages_ = new PersistentVector();
+  ephemeral_messages_ = new EphemeralVector();
+  
   this->set_task(Core::Task::EXCHANGE);
-  api_device_ = new api::CustomAPIDevice();
-  this->api_device_->register_service(
-    &Core::action_custom_message, "send_message",
-    std::array<std::string, 3>{{"flag", "items", "qos"}}
-  );
+  api_device_ = new CoreAPIDevice(this);
+  // api_device_ = new api::CustomAPIDevice();
+  // this->api_device_->register_service(
+  //   &Core::action_custom_message, "send_message",
+  //   std::array<std::string, 3>{{"flag", "items", "qos"}}
+  // );
 }
 
 void Core::dump_config() {
-  ESP_LOGCONFIG(TAG, "hlink2 Core");
-  ESP_LOGCONFIG(TAG, "Ephemeral Messages: %zu/%zu", this->ephemeral_messages_.size(), this->ephemeral_messages_.capacity());
-  ESP_LOGCONFIG(TAG, "Persistent Messages: %zu/%zu", this->persistent_messages_.size(), this->persistent_messages_.capacity());
+  ESP_LOGCONFIG(TAG, "this=%p", this);
+  ESP_LOGCONFIG(TAG, "ephemeral_messages_=%p", this->ephemeral_messages_);
+  ESP_LOGCONFIG(TAG, "persistent_messages_=%p", this->persistent_messages_);
 
-  for (size_t i=0; i < this->persistent_messages_.size(); i++) {
-    ESP_LOGCONFIG(TAG, " %s", this->persistent_messages_[i].config().c_str());
+  ESP_LOGCONFIG(TAG, "hlink2 Core");
+  ESP_LOGCONFIG(TAG, "Ephemeral Messages @%p: %zu/%zu", &this->ephemeral_messages(), this->ephemeral_messages().size(), this->ephemeral_messages_->capacity());
+  ESP_LOGCONFIG(TAG, "Persistent Messages @%p: %zu/%zu", &this->persistent_messages(), this->persistent_messages().size(), this->persistent_messages_->capacity());
+
+  for (size_t i=0; i < this->persistent_messages_->size(); i++) {
+    ESP_LOGCONFIG(TAG, " %s", this->persistent_messages()[i].config().c_str());
   }
 }
 
@@ -51,10 +72,10 @@ Message* Core::register_message(MessageParameters params){
 
   TYPE* vector{nullptr};
   if constexpr (std::is_same_v<TYPE, Core::EphemeralVector>) {
-    vector = &this->ephemeral_messages_;
+    vector = &this->ephemeral_messages();
     params.ephemeral = true;
   } else if constexpr (std::is_same_v<TYPE, Core::PersistentVector>) {
-    vector = &this->persistent_messages_;
+    vector = &this->persistent_messages();
     params.ephemeral = false;
   } else {
     static_assert(std::is_same_v<TYPE, Core::EphemeralVector> || std::is_same_v<TYPE, Core::PersistentVector>, "register_message: bad TYPE");
@@ -113,22 +134,22 @@ Message* Core::register_status_mnemonic(Mnemonic& m, MessageParameters params, b
   params.qos = params.qos.value_or(Message::QoS::QOS_LOW);
 
   if (promote) {
-    for (size_t i=0; i< this->persistent_messages_.size(); i++) {
+    for (size_t i=0; i< this->persistent_messages().size(); i++) {
       if (
-        this->persistent_messages_[i].flag->match_mode(Mnemonic::Mode::STS)
-        && this->persistent_messages_[i].flag->match_dest(m.dest)
-        && this->persistent_messages_[i].interval().delay() <= *params.update_interval
-        && this->persistent_messages_[i].qos >= *params.qos
+        this->persistent_messages()[i].flag->match_mode(Mnemonic::Mode::STS)
+        && this->persistent_messages()[i].flag->match_dest(m.dest)
+        && this->persistent_messages()[i].interval().delay() <= *params.update_interval
+        && this->persistent_messages()[i].qos >= *params.qos
       ){
         // promote if already in message
-        if (this->persistent_messages_[i].has(m)) {
-          return &this->persistent_messages_[i];
+        if (this->persistent_messages()[i].has(m)) {
+          return &this->persistent_messages()[i];
         };
         if (
-          this->persistent_messages_[i].interval().delay() == *params.update_interval
-          && this->persistent_messages_[i].add(m)
+          this->persistent_messages()[i].interval().delay() == *params.update_interval
+          && this->persistent_messages()[i].add(m)
         ) {
-          return &this->persistent_messages_[i];
+          return &this->persistent_messages()[i];
         }
       }
     }
@@ -178,7 +199,7 @@ Message* Core::register_custom_message(Mnemonic::Dest dest, std::vector<std::str
         const char* split = item.c_str();
         while (*split && *split != ':') split++;
         if (*split == '\0') {
-          ESP_LOGW(TAG, "register_custom_message: missing ':' (%s)", item);
+          ESP_LOGW(TAG, "register_custom_message: missing ':' (%s)", item.c_str());
           continue;
         }
         name = std::string_view(item.c_str(), split - item.c_str());
@@ -239,9 +260,9 @@ void Core::schedule_message(Message* msg) {
 }
 
 void Core::force_update_messages() {
-  for (size_t index = 0; index < this->persistent_messages_.size(); ++index) {
-    if (this->persistent_messages_[index].interval().delay() && this->persistent_messages_[index].state() == Message::State::INITIALIZED) {
-      this->persistent_messages_[index].interval().force_expiration();
+  for (size_t index = 0; index < this->persistent_messages().size(); ++index) {
+    if (this->persistent_messages()[index].interval().delay() && this->persistent_messages()[index].state() == Message::State::INITIALIZED) {
+      this->persistent_messages()[index].interval().force_expiration();
     }
   }
 }
@@ -325,9 +346,9 @@ bool Core::task_schedule() {
           case Message::State::PROCESSED:
           case Message::State::EXPIRED:
           case Message::State::INVALID:
-            if (msg->ephemeral() && msg == &this->ephemeral_messages_.front()) { // remove first ephemeral message, which is the most probable (other will wait)
+            if (msg->ephemeral() && msg == &this->ephemeral_messages().front()) { // remove first ephemeral message, which is the most probable (other will wait)
               ESP_LOGD(TAG, "@%p removed from ephemeral messages (%s)", msg, Message::StateName[static_cast<uint8_t>(msg->state())]);
-              this->ephemeral_messages_.pop_front();
+              this->ephemeral_messages().pop_front();
               return -1; // remove msg (garbage collection)
             }
             msg->reinitialize(); // no break to exec initialized instructions
@@ -359,7 +380,7 @@ void Core::task_format() {
   }
   switch (this->current_message_->format()) { 
     case Message::State::FORMATTED:
-      ESP_LOGV(TAG, "FORMAT: @%p: done", this->current_message_);
+      ESP_LOGD(TAG, "FORMAT: @%p: done", this->current_message_);
       return;
     case Message::State::EXPIRED:
       ESP_LOGW(TAG, "FORMAT: expired");
@@ -374,14 +395,16 @@ void Core::task_format() {
 void Core::task_transmit() {
   IOBuffer* buffer = this->current_message_->request_buffer();
   Timer timeout{TASK_TIMEOUT};
-  ESP_LOGV(TAG, "TRANSMIT: start, %zu/%zu bytes", buffer->view_index(), buffer->size());
+  ESP_LOGD(TAG, "TRANSMIT: start, %zu/%zu bytes", buffer->view_index(), buffer->size());
   
   // empty read buffer (there is no way to know to which message attribute read data)
-  size_t available_bytes;
-  uint8_t buffer_[256];
-  while ((available_bytes = this->available()) && !timeout.expired()) {
-    this->read_array(buffer_, std::min(sizeof(buffer_), available_bytes));
-    ESP_LOGW(TAG, "TRANSMIT: discarded RX buffer (%zu), %s", available_bytes, debug_data(buffer_, available_bytes).c_str());
+  if (buffer->size() == 0) {
+    size_t available_bytes;
+    uint8_t buffer_[256];
+    while ((available_bytes = this->available()) && !timeout.expired()) {
+      this->read_array(buffer_, std::min(sizeof(buffer_), available_bytes));
+      ESP_LOGW(TAG, "TRANSMIT: discarded RX buffer (%zu), %s", available_bytes, debug_data(buffer_, available_bytes).c_str());
+    }
   }
 
   // transmit TX buffer
@@ -397,14 +420,14 @@ void Core::task_transmit() {
 
   this->current_message_->set_state(Message::State::SENT);
   this->buffer_rx_.set_state(IOBuffer::State::EMPTY);
-  ESP_LOGV(TAG, "TRANSMIT: @%p: done, %d/%d bytes", this->current_message_, buffer->view_index(), buffer->size());
+  ESP_LOGD(TAG, "TRANSMIT: @%p: done, %d/%d bytes", this->current_message_, buffer->view_index(), buffer->size());
   return;
 }
 
 
 void Core::task_receive() {
   Timer timeout{TASK_TIMEOUT};
-  ESP_LOGV(TAG, "RECEIVE: start, %d bytes", this->buffer_rx_.size());
+  ESP_LOGD(TAG, "RECEIVE: start, %d bytes", this->buffer_rx_.size());
   
   uint8_t data;
   int available_bytes;
@@ -430,7 +453,7 @@ void Core::task_receive() {
 
       switch (this->buffer_rx_.state()) {
         case IOBuffer::State::READY:
-          ESP_LOGV(TAG, "RECEIVE: @%p: done (%d bytes)", this->current_message_, this->buffer_rx_.size());
+          ESP_LOGD(TAG, "RECEIVE: @%p: done (%d bytes)", this->current_message_, this->buffer_rx_.size());
           this->current_message_->set_state(Message::State::RECEIVED);
           return;
         case IOBuffer::State::INVALID:
@@ -453,10 +476,10 @@ void Core::task_receive() {
 
 
 void Core::task_parse() {
-  ESP_LOGV(TAG, "PARSE: start");
+  ESP_LOGD(TAG, "PARSE: start");
   switch(this->current_message_->parse(this->buffer_rx_)) {
     case Message::State::PARSED:
-      ESP_LOGV(TAG, "PARSE: done, %d mnemonics to process", this->current_message_->response_mnemonics.size());
+      ESP_LOGD(TAG, "PARSE: done, %d mnemonics to process", this->current_message_->response_mnemonics.size());
 
       if (
         this->current_message_->flag->match_mode(Mnemonic::Mode::CMD)
@@ -489,7 +512,7 @@ void Core::task_parse() {
 
 void Core::task_process() {
   Timer timeout{TASK_TIMEOUT};
-  ESP_LOGV(TAG, "PROCESS: start, %d messages to process", this->received_messages.size());
+  ESP_LOGD(TAG, "PROCESS: start, %d messages to process", this->received_messages.size());
   do {
     Message* msg = this->received_messages.front();
 
@@ -500,17 +523,17 @@ void Core::task_process() {
     }
     switch (*msg->response) {
       case Message::Response::VALID:
-        ESP_LOGV(TAG, "PROCESS: @%p: response VALID");
+        ESP_LOGV(TAG, "PROCESS: @%p: response VALID", msg);
         break;
       case Message::Response::OTHER:
-        ESP_LOGV(TAG, "PROCESS: @%p: response OTHER");
+        ESP_LOGV(TAG, "PROCESS: @%p: response OTHER", msg);
         *msg->response = Message::Response::VALID;
         break;
       case Message::Response::PARTIAL:
-        ESP_LOGW(TAG, "PROCESS: @%p: response PARTIAL");
+        ESP_LOGD(TAG, "PROCESS: @%p: response PARTIAL", msg);
         break;
       case Message::Response::INVALID:
-        ESP_LOGW(TAG, "PROCESS: @%p: response INVALID");
+        ESP_LOGW(TAG, "PROCESS: @%p: response INVALID", msg);
         this->received_messages.pop_front();
         continue;
       default:
@@ -535,7 +558,7 @@ void Core::task_process() {
       }
     }
     
-    ESP_LOGV(TAG, "PROCESS: @%p: done", msg);
+    ESP_LOGD(TAG, "PROCESS: @%p: done", msg);
     msg->run_callbacks();
     msg->set_state(Message::State::PROCESSED);
     if (msg->flag->match_mode(Mnemonic::Mode::CMD)) {

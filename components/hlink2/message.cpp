@@ -6,7 +6,6 @@
 
 #include "message.h"
 #include "buffer.h"
-#include "main.h"
 #include "tools.h"
 #include "mnemonics.h"
 
@@ -139,7 +138,7 @@ void Message::initialize(uint32_t delay) {
 void Message::schedule() {
   this->state_.attempts = static_cast<uint8_t>(this->qos);
   this->state_.timer.restart();
-  ESP_LOGV(TAG, "@%p: %d attempts, timeout at %lums", this, this->state_.attempts, this->state_.timer.expiration());
+  ESP_LOGV(TAG, "@%p: %d attempts, timeout at %ums", this, this->state_.attempts, this->state_.timer.expiration());
   switch (this->request_buffer_.state()) {
     case IOBuffer::State::READY:
       this->set_state(Message::State::FORMATTED);

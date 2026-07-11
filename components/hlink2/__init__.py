@@ -42,16 +42,20 @@ DEPENDENCIES = ["uart"]
 Mnemonics.init()
 # builtin mnemonics
 Mnemonic.get('Buzz', Mnemonic.Dest.IDU, Mnemonic.Mode.CMD, Mnemonic.Type.INT, builtin=True),
+Mnemonic.get('CapC', Mnemonic.Dest.IDU, Mnemonic.Mode.STS, Mnemonic.Type.FLOAT, builtin=True),
 Mnemonic.get('FanS', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.INT, builtin=True),
 Mnemonic.get('FanSw', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.INT, builtin=True),
 Mnemonic.get('FilS', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.INT, builtin=True),
 Mnemonic.get('FltT', Mnemonic.Dest.IDU, Mnemonic.Mode.STS, Mnemonic.Type.INT, builtin=True),
+Mnemonic.get('Func1', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.INT, builtin=True),
+Mnemonic.get('Func2', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.INT, builtin=True),
 Mnemonic.get('HExT', Mnemonic.Dest.IDU, Mnemonic.Mode.STS, Mnemonic.Type.FLOAT, builtin=True),
 Mnemonic.get('HExT', Mnemonic.Dest.ODU, Mnemonic.Mode.STS, Mnemonic.Type.FLOAT, builtin=True),
 Mnemonic.get('Hr', Mnemonic.Dest.IDU, Mnemonic.Mode.STS, Mnemonic.Type.FLOAT, builtin=True),
 Mnemonic.get('Mode', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.INT, builtin=True),
+Mnemonic.get('MdDtl', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.INT, builtin=True),
 Mnemonic.get('Modl', Mnemonic.Dest.IDU, Mnemonic.Mode.STS, Mnemonic.Type.STR, builtin=True),
-Mnemonic.get('OnOf', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.INT, builtin=True),
+Mnemonic.get('OnOf', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.BOOL, builtin=True),
 Mnemonic.get('Opt1', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.INT, builtin=True),
 Mnemonic.get('Opt2', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.INT, builtin=True),
 Mnemonic.get('Opt3', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.INT, builtin=True),
@@ -64,7 +68,8 @@ Mnemonic.get('RlMd', Mnemonic.Dest.IDU, Mnemonic.Mode.STS, Mnemonic.Type.INT, bu
 Mnemonic.get('SetT', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.FLOAT, builtin=True),
 Mnemonic.get('SSID', Mnemonic.Dest.IDU, Mnemonic.Mode.CMD, Mnemonic.Type.STR, builtin=True),
 Mnemonic.get('Ta', Mnemonic.Dest.ODU, Mnemonic.Mode.STS, Mnemonic.Type.FLOAT, builtin=True),
-Mnemonic.get('Time', Mnemonic.Dest.IDU, Mnemonic.Mode.STS, Mnemonic.Type.STR, builtin=True),
+Mnemonic.get('Thmo', Mnemonic.Dest.IDU, Mnemonic.Mode.STS, Mnemonic.Type.BOOL, builtin=True)
+Mnemonic.get('Time', Mnemonic.Dest.IDU, Mnemonic.Mode.CMD, Mnemonic.Type.STR, builtin=True),
 Mnemonic.get('Tr', Mnemonic.Dest.IDU, Mnemonic.Mode.STS, Mnemonic.Type.FLOAT, builtin=True),
 Mnemonic.get('WSt', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.INT, builtin=True),
 Mnemonic.get('WtmS', Mnemonic.Dest.IDU, Mnemonic.Mode.STS | Mnemonic.Mode.CMD, Mnemonic.Type.INT, builtin=True),
@@ -106,7 +111,7 @@ CONFIG_SCHEMA = cv.All(
     })
     .extend({
         cv.Optional(CONF_PARAMETERS, default={}): cv.Schema({
-            cv.Optional('uart_tx_chunck_size'): cv.All(cv.positive_int, cv.Range(4, 128)),
+            cv.Optional('uart_tx_chunck_size'): cv.All(cv.positive_int, cv.Range(4, 256)),
             cv.Optional('message_mnemonics_capacity'): cv.All(cv.positive_int, cv.Range(3, 15)),
             cv.Optional('task_timeout'): cv.All(
                 cv.positive_time_period, cv.Range(core.TimePeriod(milliseconds=10), core.TimePeriod(milliseconds=40))
