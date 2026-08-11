@@ -15,14 +15,7 @@ Once done, next updates can be done OTA using Esphome. No special instructions a
 
 [Libretiny documentation](https://docs.libretiny.eu/docs/platform/realtek-ambz/#flashing) states: "Because the UART uploading code is programmed in the ROM of the chip, it can't be software-bricked, even if you damage the bootloader". This means that it should be safe to flash custom firmware. However, you remain responsible if any problems occur.
 
-Use [hitachi_altwifi.yaml](https://github.com/clsergent/hitachi_altwifi/blob/main/hitachi_altwifi.yaml) as a package in your main esphome yaml file (set the climate name using the custom var `ac_name`):
-```
-packages:
-  hitachi_ac: !include
-    file: hitachi_altwifi.yaml
-    vars:
-      ac_name: ${ac_name}
-```
+Use the provided [model configuration file](https://github.com/clsergent/hitachi_altwifi/blob/main/build/device-model.yaml) to build your own firmware.
 
 
 ## Compatibility list
@@ -35,9 +28,10 @@ This project initially relied on custom firmware from [esphome-hlink-ac](https:/
 However, firmware decompilation as well as UART sniffing revealed a new, undocumented [protocol](https://github.com/clsergent/hitachi_altwifi/blob/main/Protocol.md), which, for convenience, will be referred to as *hlink2*.
 
 A new firmware targeting *hlink2* is now available. It supports additional features such as 0.5 °C temperature increments.
-The firmware has been successfully tested on at least two AC units but should still be considered experimental at this stage
+The firmware has been successfully tested on at least two AC units for more than a year without any problem.
 
-Use the [provided model configuration file](https://github.com/clsergent/hitachi_altwifi/blob/main/build/device-model.yaml) to build your firmware.
+Discovered AC endpoints have been gathered in the [mnemonics](https://github.com/clsergent/hitachi_altwifi/blob/main/Mnemonics.md) file.
+
 
 ## Credits
 Initial custom firmware provided by [esphome-hlink-ac](https://github.com/lumixen/esphome-hlink-ac) for legacy binary HLINK protocol.

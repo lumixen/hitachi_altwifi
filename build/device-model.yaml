@@ -3,6 +3,8 @@
 # Target board
 rtl87xx:
   board: generic-rtl8710bn-2mb-788k
+  framework: # required by UART bug, see: https://github.com/libretiny-eu/libretiny/issues/366
+    version: 1.10.0
 
 
 esphome:
@@ -12,11 +14,7 @@ esphome:
       # Fix ring buffer error
       - framework-arduino-api @ https://github.com/clsergent/ArduinoCore-API#f470e0a7f7964957d88465ff3ac5a024aa04da06
     build_flags: 
-      # Last version handled by realtek API
-      - -std=gnu++17
       - -DLT_UART_RX_BUFFER_SIZE=1024
-    build_unflags:
-      -std=gnu++11
   
   # example of how to use 'action_custom_message' to send custom messages
   on_boot:
@@ -26,6 +24,21 @@ esphome:
 
 # Enable logging
 logger:
+  baud_rate: 0
+  level: DEBUG
+  initial_level: INFO
+  logs:
+    # enable detailed logs for hlink2 components by setting DEBUG instead of INFO
+    "hlink2:core": INFO
+    "hlink2:binary_sensor": INFO
+    "hlink2:button": INFO
+    "hlink2:climate": INFO
+    "hlink2:number": INFO
+    "hlink2:select": INFO
+    "hlink2:sensor": INFO
+    "hlink2:switch": INFO
+    "hlink2:text": INFO
+    "hlink2:text_sensor": INFO
 
 
 # Network is required by api
@@ -34,15 +47,24 @@ network:
 
 # api is required to use action_custom_message
 api:
+  custom_services: true
 
 
 uart:
   id: hitachi_bus
-  tx_pin: GPIO23 #PA23 = UART_TXD
-  rx_pin: GPIO18 #PA18 = UART_RXD
+  tx_pin: PA23 #UART_TXD
+  rx_pin: PA18 #UART_RXD
   baud_rate: 9600
   parity: ODD
   rx_buffer_size: 1024
+  # to see raw data, enable the following block (and set "uart_debug": DEBUG in logger block)
+  #debug:
+  #  direction: BOTH
+  #  after:
+  #    delimiter: '\x03'
+  #    bytes: 256
+  #  sequence:
+  #    - lambda: UARTDebug::log_string(direction, bytes);
 
 
 external_components:
@@ -62,7 +84,7 @@ hlink2:
     task_timeout: 30ms
     
     # Number of bytes sent at once over UART
-    uart_tx_chunck_size: 16
+    uart_tx_chunck_size: 128
     
     # Maximum amount of distinct mnemonics in a message
     message_mnemonics_capacity: 13
@@ -74,14 +96,44 @@ hlink2:
     message_update_timeout: 4s
   mnemonics:
   # List of custom mnemonics
-  # Default mnemonics doesn't have to be explicitely set)
+  # Default mnemonics doesn't have to be explicitely set
     - # Mnemonic name must be the value used in messages
       name: Func1
-      # Message modes handled by the mnemonic (ie. STS, CMD)
+      # Message modes handled by the mnemonic:
+      # - STS = status
+      # - CMD = command
       mode: [STS, CMD]
       # Message destination (ie. IDU for indoor unit, ODU for outdoor unit)
       # A dedicated mnemonic must be created for each destination
+      # Possible destinations are:
+      # - IDU = indoor unit
+      # - ODU = outdoor unit
       dest: IDU
+
+
+binary_sensor:
+  # handled binary sensors
+  - platform: hlink2
+    state:
+      # at least a name or an ID must be provided for each sensor
+      name: "State"
+      # component update interval (polling)
+      update_interval: 10s
+      # 'promote' allow to add the mnemonic in a message with an update interval lower than the one defined in the sensor
+      # it allow to group mnemonics in messages, reducing UART traffic
+      promote: true
+      # 'qos' controls retries on failure and scales message timeout (0=low, 1=medium, 2=high)
+      qos: low
+      # 'off_update' determines if a sensor value should be updated when AC unit is off or set to unknown
+      off_update: true
+
+  - platform: hlink2
+    climate:
+      name: "Climate"
+
+  - platform: hlink2
+    filter_maintenance:
+      name: "Filter maintenance"
 
 
 button:
@@ -89,6 +141,7 @@ button:
   - platform: hlink2
     filter_reset:
       name: "reset_filter"
+
   # Custom buttons can be added here
   # They require a mnemonic handling CMD mode
   - platform: hlink2
@@ -102,9 +155,10 @@ button:
       # Enable buzzer on button press
       # If buzzer is disabled, this setting will NOT override it
       buzzer: true
-      # 'qos' controls retries on failure and scales message timeout (0=low, 1=medium, 2=high)
+      # 'qos' option matches other hlink2 components
       qos: high
       # other esphome button attributes can be added here (state_class, etc.)
+
   - platform: hlink2
     custom:
       name: "Custom button2"
@@ -140,6 +194,7 @@ number:
   - platform: hlink2
     target_temperature:
       name: "target_temperature"
+
   # custom numbers can be added here
   # they require a mnemonic handling CMD mode
   - platform: hlink2
@@ -179,35 +234,50 @@ sensor:
       name: "outdoor_temperature"
       # 'update_interval' option matches other hlink2 components
       update_interval: 10s
-      # 'promote' allow to add the mnemonic in a message with an update interval lower than the one defined in the sensor
-      # it allow to group mnemonics in messages, reducing UART traffic
+      # 'promote' option matches other hlink2 components
       promote: true
       # 'qos' option matches other hlink2 components
       qos: low
+      # 'off_update' option matches other hlink2 components
+      off_update: true
+
   - platform: hlink2
     indoor_temperature:
       name: "indoor_temperature"
+
   - platform: hlink2
     indoor_humidity:
       name: "indoor_humidity"
+
   - platform: hlink2
     filter_usage:
       name: "filter_usage"
+
   - platform: hlink2
     energy:
       name: "total_energy"
+
   - platform: hlink2
     power:
       name: "power"
+
   - platform: hlink2
     airflow:
       name: "airflow"
+
   - platform: hlink2
     indoor_exchanger:
       name: "indoor_exchanger"
+
   - platform: hlink2
     outdoor_exchanger:
       name: "outdoor_exchanger"
+  
+  - platform: hlink2
+    capacity:
+      name: "capacity"
+      promote: false
+
   - platform: hlink2
     custom: 
       name: "Custom sensor"
@@ -223,15 +293,19 @@ switch:
   - platform: hlink2
     buzzer:
       name: "buzzer"
+
   - platform: hlink2
     led_wifi:
       name: "wifi_led"
+
   - platform: hlink2
     led_timer:
       name: "timer_led"
+
   - platform: hlink2
     preset_eco:
       name: "preset_eco"
+
   - platform: hlink2
     custom:
       name: "Custom switch"
@@ -266,6 +340,9 @@ text_sensor:
       promote: false
             # 'qos' option matches other hlink2 components
       qos: high
+      # 'off_update' option matches other hlink2 components
+      off_update: true
+
   - platform: hlink2
     custom:
       name: "Func1"
