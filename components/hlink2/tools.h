@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "esphome/core/helpers.h"
+#include "esphome/core/hal.h"
 
 
 namespace esphome {
@@ -32,8 +33,8 @@ struct Timer {
     Timer(uint32_t delay) {this->set(delay);} ;
 
     inline uint32_t expiration() {return this->value_;}
-    inline void set(uint32_t delay) {this->value_ = millis() + delay;}
-    inline bool expired() const {return (int32_t)(millis() - this->value_) >= 0;}
+    inline void set(uint32_t delay) {this->value_ = esphome::millis() + delay;}
+    inline bool expired() const {return (int32_t)(esphome::millis() - this->value_) >= 0;}
   
   protected:
     uint32_t value_;

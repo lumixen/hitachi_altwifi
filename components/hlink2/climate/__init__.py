@@ -173,26 +173,21 @@ async def to_code(config):
     if fan_modes :=  config.get(CONF_SUPPORTED_FAN_MODES):
         cg.add(var.set_supported_fan_modes(fan_modes))
 
-    if presets :=  config.get(CONF_SUPPORTED_PRESETS):
-        custom_presets = presets.copy()
+    if configured_presets := config.get(CONF_SUPPORTED_PRESETS):
+        # Do not mutate the validated config: ESPHome serializes it again to
+        # calculate the build hash, and generated enum values are not YAML-safe.
+        presets = list(configured_presets)
 
         # remove custom presets from regular presets list
         for custom_preset in HLINK2_AC_CUSTOM_PRESETS:
             if custom_preset in presets:
                 presets.remove(custom_preset)
-        
-        # remove regular presets from custom presets list
-        for preset in HLINK2_AC_PRESETS:
-            if preset in custom_presets:
-                custom_presets.remove(preset)
 
         # add NONE preset if not present
-        if "NONE" not in presets:
+        if "NONE" not in presets and HLINK2_AC_PRESETS["NONE"] not in presets:
             presets.append(HLINK2_AC_PRESETS["NONE"])
 
         cg.add(var.set_supported_presets(presets))
-        #if custom_presets:
-        #    cg.add(var.set_supported_custom_presets(custom_presets))
 
     if actions := config.get(CONF_HVAC_ACTIONS):
         cg.add(var.set_supports_hvac_actions(actions))

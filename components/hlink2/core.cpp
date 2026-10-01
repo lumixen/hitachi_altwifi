@@ -10,7 +10,9 @@
 #include <string>
 #include <string_view>
 #include "core.h"
+#ifdef USE_API_CUSTOM_SERVICES
 #include "esphome/components/api/custom_api_device.h"
+#endif
 
 
 namespace esphome {
@@ -18,10 +20,11 @@ namespace hlink2 {
 static const char *const TAG = "hlink2:core";
 
 
+#ifdef USE_API_CUSTOM_SERVICES
 class Core::CoreAPIDevice : public api::CustomAPIDevice {
   public:
     explicit CoreAPIDevice(Core *core) : core_(core) {
-      register_service(&CoreAPIDevice::send_message, "send_message", {"flag","items","qos"});
+      register_service(&CoreAPIDevice::send_message, "send_message", {"flag", "items", "qos"});
     }
 
     void send_message(std::string flag, std::vector<std::string> items, int32_t qos) {
@@ -31,6 +34,7 @@ class Core::CoreAPIDevice : public api::CustomAPIDevice {
   private:
     Core *core_;
 };
+#endif
 
 Core::Core() {
   this->buffer_rx_.set_state(IOBuffer::State::EMPTY);
@@ -43,12 +47,9 @@ void Core::setup() {
   ephemeral_messages_ = new EphemeralVector();
   
   this->set_task(Core::Task::EXCHANGE);
+#ifdef USE_API_CUSTOM_SERVICES
   api_device_ = new CoreAPIDevice(this);
-  // api_device_ = new api::CustomAPIDevice();
-  // this->api_device_->register_service(
-  //   &Core::action_custom_message, "send_message",
-  //   std::array<std::string, 3>{{"flag", "items", "qos"}}
-  // );
+#endif
 }
 
 void Core::dump_config() {

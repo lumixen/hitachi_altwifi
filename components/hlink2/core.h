@@ -106,9 +106,10 @@ class Core: public uart::UARTDevice, public Component {
     bool buzzer_{false};
     Task current_task_{Task::EXCHANGE};
     IOBuffer buffer_rx_{};
-    //api::CustomAPIDevice* api_device_{nullptr};
+#ifdef USE_API_CUSTOM_SERVICES
     class CoreAPIDevice;
     CoreAPIDevice* api_device_{nullptr};
+#endif
     PersistentVector* persistent_messages_{nullptr};
     EphemeralVector* ephemeral_messages_{nullptr};
     OrderedVector<Message*, PersistentVector::capacity() + EphemeralVector::capacity()> messages_;
